@@ -1,5 +1,11 @@
 module MemoryExaminer
 
+# Use README as module docstring
+@doc let path = joinpath(dirname(@__DIR__), "README.md")
+    include_dependency(path)
+    read(path, String)
+end MemoryExaminer
+
 using TerminalMenus
 using Humanize
 
@@ -77,6 +83,5 @@ function _get_next_field_from_user(request_str, option_strings)
         return choice
     end
 end
-
 
 end  # module

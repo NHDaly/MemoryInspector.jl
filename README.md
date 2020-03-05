@@ -2,6 +2,8 @@
 
 [![Build Status](https://travis-ci.com/nhdaly/MemoryExaminer.jl.svg?branch=master)](https://travis-ci.com/nhdaly/MemoryExaminer.jl)
 
+- `MemoryExaminer.@inspect x`
+
 A simple julia REPL tool for examining the sizes of in-memory objects:
 ```julia
 julia> d = Dict(1=>(1,2), 2=>3)
