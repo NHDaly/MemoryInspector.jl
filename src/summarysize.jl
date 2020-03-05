@@ -10,6 +10,7 @@ Base.@kwdef mutable struct FieldResult
     size::Int = 0
     type::Type
     is_collection::Bool = false
+    skipped_self_reference::Bool = false
     children::Dict{String, FieldResult} = Dict()
     parent::Union{FieldResult,Nothing} = nothing
 end
@@ -108,7 +109,7 @@ end
     # NOTE: this attempts to discover multiple copies of the same immutable value,
     # and so is somewhat approximate.
     key = ccall(:jl_value_ptr, Ptr{Cvoid}, (Any,), obj)
-    haskey(ss.seen, key) ? (return 0) : (ss.seen[key] = true)
+    if handle_seen(fieldresult, ss, key) return 0 end
     if nfields(obj) > 0
         push!(ss.frontier, FrontierNode(obj, 1, fieldresult))
     end
@@ -124,19 +125,28 @@ end
     end
     return sz
 end
+function handle_seen(fieldresult, ss, obj)
+    if haskey(ss.seen, obj)
+        fieldresult.skipped_self_reference = true
+        return true
+    else
+        ss.seen[obj] = true
+        return false
+    end
+end
 
-(::SummarySize)(_1,_2, obj::Symbol) = 0
-(::SummarySize)(_1,_2, obj::SummarySize) = 0
+(::SummarySize)(fieldresult,_2, obj::Symbol) = 0
+(::SummarySize)(fieldresult,_2, obj::SummarySize) = 0
 
-function (ss::SummarySize)(_1,_2, obj::String)
+function (ss::SummarySize)(f,_2, obj::String)
     key = ccall(:jl_value_ptr, Ptr{Cvoid}, (Any,), obj)
-    haskey(ss.seen, key) ? (return 0) : (ss.seen[key] = true)
+    if handle_seen(f, ss, obj) return 0 end
     return Core.sizeof(Int) + Core.sizeof(obj)
 end
 
-function (ss::SummarySize)(_1,_2, obj::DataType)
+function (ss::SummarySize)(f,_2, obj::DataType)
     key = pointer_from_objref(obj)
-    haskey(ss.seen, key) ? (return 0) : (ss.seen[key] = true)
+    if handle_seen(f, ss, obj) return 0 end
     size::Int = 7 * Core.sizeof(Int) + 6 * Core.sizeof(Int32)
     size += 4 * nfields(obj) + ifelse(Sys.WORD_SIZE == 64, 4, 0)
     size += ss(obj.parameters)::Int
@@ -146,15 +156,15 @@ function (ss::SummarySize)(_1,_2, obj::DataType)
     return size
 end
 
-function (ss::SummarySize)(_1,_2, obj::Core.TypeName)
+function (ss::SummarySize)(fieldresult,_2, obj::Core.TypeName)
     key = pointer_from_objref(obj)
-    haskey(ss.seen, key) ? (return 0) : (ss.seen[key] = true)
+    if handle_seen(f, ss, obj) return 0 end
     return Core.sizeof(obj) + (isdefined(obj, :mt) ? ss(obj.mt) : 0)
 end
 
 function (ss::SummarySize)(fieldresult,_2, obj::Array)
     fieldresult.is_collection = true
-    haskey(ss.seen, obj) ? (return 0) : (ss.seen[obj] = true)
+    if handle_seen(fieldresult, ss, obj) return 0 end
     headersize = 4*sizeof(Int) + 8 + max(0, ndims(obj)-2)*sizeof(Int)
     size::Int = headersize
     datakey = unsafe_convert(Ptr{Cvoid}, obj)
@@ -176,7 +186,7 @@ end
 function (ss::SummarySize)(fieldresult,_2, obj::SimpleVector)
     fieldresult.is_collection = true
     key = pointer_from_objref(obj)
-    haskey(ss.seen, key) ? (return 0) : (ss.seen[key] = true)
+    if handle_seen(fieldresult, ss, obj) return 0 end
     size::Int = Core.sizeof(obj)
     if !isempty(obj)
         push!(ss.frontier, FrontierNode(obj, 1, fieldresult))
@@ -184,8 +194,8 @@ function (ss::SummarySize)(fieldresult,_2, obj::SimpleVector)
     return size
 end
 
-function (ss::SummarySize)(_1,_2, obj::Module)
-    haskey(ss.seen, obj) ? (return 0) : (ss.seen[obj] = true)
+function (ss::SummarySize)(fieldresult,_2, obj::Module)
+    if handle_seen(fieldresult, ss, obj) return 0 end
     size::Int = Core.sizeof(obj)
     for binding in names(obj, all = true)
         if isdefined(obj, binding) && !isdeprecated(obj, binding)
@@ -205,8 +215,8 @@ function (ss::SummarySize)(_1,_2, obj::Module)
     return size
 end
 
-function (ss::SummarySize)(_1,_2, obj::Task)
-    haskey(ss.seen, obj) ? (return 0) : (ss.seen[obj] = true)
+function (ss::SummarySize)(fieldresult,_2, obj::Task)
+    if handle_seen(fieldresult, ss, obj) return 0 end
     size::Int = Core.sizeof(obj)
     if isdefined(obj, :code)
         size += ss(obj.code)::Int

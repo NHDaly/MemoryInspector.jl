@@ -1,15 +1,21 @@
 module MemoryExaminerTest
 import ..MemoryExaminer
 
-mutable struct StringHolder
-    a::String
-    b::String
+mutable struct Obj{T1,T2}
+    a::T1
+    b::T2
+    Obj{A,B}(a::A,b::B) where {A,B} = new{A,B}(a,b)
+    Obj{A,B}(a::A) where {A,B} = new{A,B}(a) # Allow partial construction
+    Obj{A,B}() where {A,B} = new{A,B}() # Allow partial construction
+    Obj(a::A,b::B) where {A,B} = Obj{A,B}(a,b)
 end
 
 s = join(rand('a':'z', 1024*1024)); # 1 MiB string
-sh = StringHolder(s, s);
+multistring = Obj(s,s);   # Shared references to large object
+selfie = Obj{Obj,Obj}(multistring);
+selfie.b = selfie;    # Self-reference
 
-MemoryExaminer.@inspect(sh)
+MemoryExaminer.@inspect selfie
 MemoryExaminer.MemorySummarySize.summarysize(sh)
 
 # Humanize.datasize(Base.summarysize(sh), style=:bin)
