@@ -24,8 +24,8 @@ const _collection_types = (AbstractArray, AbstractDict, AbstractSet)
 probably_a_collection(x::Type{<:Union{_collection_types...}}) = true
 
 
-inspect(obj) = inspect(obj, "obj")
-function inspect(obj, path)
+inspect(@nospecialize obj) = inspect(obj, "obj")
+function inspect(@nospecialize(obj), path)
     println("—"^(displaysize(stdout)[2]*2÷3))
     sz = Base.summarysize(obj)
     println("($path)::$(typeof(obj)) => $(Humanize.datasize(sz))")
