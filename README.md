@@ -89,3 +89,7 @@ julia> MemoryExaminer.@inspect selfie
 Note that this does mean that sometimes the bytes may be accounted for in a sub-reference
 that may not match your expectations. This tradeoff between breadth-first and depth-first
 searching is something we should investigate tuning in the future!
+
+
+## Desired Features
+See this GitHub Issue for some desired features: [#1](https://github.com/NHDaly/MemoryExaminer.jl/issues/1)
