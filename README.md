@@ -31,8 +31,7 @@ julia> MemoryExaminer.@inspect d
  → ↩
 ```
 
-## Features
-**True Size Accounting**
+## Featuring *True Size Accounting!*
 Importantly (like `Base.summarysize(x)`) `@inspect x` is able to account for self-references
 and shared references inside of objects, so that only the true sizes of fields are
 displayed! This allows you to correctly investigate the size of truly complex objects.
