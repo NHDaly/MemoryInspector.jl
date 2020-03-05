@@ -35,14 +35,13 @@ function inspect(@nospecialize(obj), name)
 end
 function interactive_inspect_results(field_summary, path)
     println("—"^(displaysize(stdout)[2]*2÷3))
-    sz = field_summary.size
     type = field_summary.type
-    println("($path)::$type => $(Humanize.datasize(sz))")
+    println("($path)::$type => $(_field_size(field_summary))")
 
 
     children = sort(collect(field_summary.children), by=pair->pair[2].size, rev=true)
     options = [
-        "$name::$(f.type) => $(Humanize.datasize(f.size))"
+        "$name::$(f.type) => $(_field_size(f))"
         for (name,f) in children
     ]
 
@@ -60,6 +59,7 @@ function interactive_inspect_results(field_summary, path)
         interactive_inspect_results(field_summary, path)
     end
 end
+_field_size(f) = f.skipped_self_reference ? "<self-reference>" : Humanize.datasize(f.size, style=:bin)
 
 struct FieldError end
 const fielderror = FieldError()
