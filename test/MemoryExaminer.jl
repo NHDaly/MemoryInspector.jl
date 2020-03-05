@@ -10,6 +10,7 @@ s = join(rand('a':'z', 1024*1024)); # 1 MiB string
 sh = StringHolder(s, s);
 
 MemoryExaminer.@inspect(sh)
+MemoryExaminer.MemorySummarySize.summarysize(sh)
 
 # Humanize.datasize(Base.summarysize(sh), style=:bin)
 #
