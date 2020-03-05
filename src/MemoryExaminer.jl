@@ -9,6 +9,8 @@ end MemoryExaminer
 using TerminalMenus
 using Humanize
 
+include("summarysize.jl")
+
 """
     @inspect x
 
@@ -25,39 +27,37 @@ probably_a_collection(x::Type{<:Union{_collection_types...}}) = true
 
 
 inspect(@nospecialize obj) = inspect(obj, "obj")
-function inspect(@nospecialize(obj), path)
+function inspect(@nospecialize(obj), name)
+    TerminalMenus.config(scroll=:wrap,cursor='→')
+
+    field_summary = MemorySummarySize.summarysize(obj, parentname=name)
+    interactive_inspect_results(field_summary, name)
+end
+function interactive_inspect_results(field_summary, path)
     println("—"^(displaysize(stdout)[2]*2÷3))
-    sz = Base.summarysize(obj)
-    println("($path)::$(typeof(obj)) => $(Humanize.datasize(sz))")
+    sz = field_summary.size
+    type = field_summary.type
+    println("($path)::$type => $(Humanize.datasize(sz))")
 
-    is_collection, fieldnames, fields, options = if probably_a_collection(typeof(obj))
-        fields = collect(obj)
-        fieldnames = 1:length(fields)
-        options = [
-            "$i::$(typeof(f)) => $(Humanize.datasize(Base.summarysize(f)))"
-            for (i,f) in enumerate(fields)
-        ]
-        true, fieldnames, fields, options
-    else
-        fieldnames = propertynames(obj)
-        fields = [_trygetfield(obj, n) for n in fieldnames]
-        options = [
-            "$fieldname::$(typeof(f)) => $(Humanize.datasize(Base.summarysize(f)))"
-            for i in 1:length(fields)
-            for (f,fieldname) in ((fields[i],fieldnames[i]),)
-        ]
-        false, fieldnames, fields, options
-    end
 
-    request_str = is_collection ? "Item indices:" : "Fields:"
+    children = sort(collect(field_summary.children), by=pair->pair[2].size, rev=true)
+    options = [
+        "$name::$(f.type) => $(Humanize.datasize(f.size))"
+        for (name,f) in children
+    ]
+
+    is_collection = field_summary.is_collection
+    num_children = length(field_summary.children)
+    request_str = is_collection ? "$num_children Indexes:" : "$num_children Fields:"
     choice = _get_next_field_from_user(request_str, options)
     if choice == UP
         return
     else
-        newpath = is_collection ? "$path[$(fieldnames[choice])]" : "$path.$(fieldnames[choice])"
-        inspect(fields[choice], newpath)
+        (name,field) = children[choice]
+        newpath = is_collection ? "$path[$name]" : "$path.$name"
+        interactive_inspect_results(field, newpath)
         # When you return Up from choice, rerun this pane
-        inspect(obj, path)
+        interactive_inspect_results(field_summary, path)
     end
 end
 
@@ -66,12 +66,11 @@ const fielderror = FieldError()
 _trygetfield(o, f) = try getfield(o, f) catch; fielderror end
 
 
-TerminalMenus.config(scroll=:wrap,cursor='→')
-
 const UP = -2
 function _get_next_field_from_user(request_str, option_strings)
     option_strings = [option_strings..., "↩"]
-    menu = RadioMenu(option_strings, pagesize=8)
+    height = displaysize(stdout)[1]
+    menu = RadioMenu(option_strings, pagesize=min(20, height-3))
 
     choice = request(request_str, menu)
 

@@ -1,11 +1,36 @@
-# This file is a part of Julia. License is MIT: https://julialang.org/license
+# This file was modified from part of Julia's Base:
+# `base/summarysize.jl`
+
+module MemorySummarySize
+
+using Core: SimpleVector
+using Base: unsafe_convert, isbitsunion
+
+Base.@kwdef mutable struct FieldResult
+    size::Int = 0
+    type::Type
+    is_collection::Bool = false
+    children::Dict{String, FieldResult} = Dict()
+    parent::Union{FieldResult,Nothing} = nothing
+end
+function Base.show(io::IO, fr::FieldResult)
+    # Print everything but parent
+    print(io,"FieldResult($(fr.size), $(fr.type), $(fr.is_collection), $(fr.children))")
+end
+
+mutable struct FrontierNode
+    x
+    i::Int
+    parent_result::FieldResult
+end
 
 struct SummarySize
     seen::IdDict{Any,Any}
-    frontier_x::Vector{Any}
-    frontier_i::Vector{Int}
+    results::FieldResult
+    frontier::Vector{FrontierNode}
     exclude::Any
     chargeall::Any
+    SummarySize(obj, exclude, chargeall) = new(IdDict(), FieldResult(type=typeof(obj)), [], exclude, chargeall)
 end
 
 """
@@ -19,58 +44,73 @@ Compute the amount of memory, in bytes, used by all unique objects reachable fro
   fields, even if those fields would normally be excluded.
 """
 function summarysize(obj;
+                     parentname="obj",
                      exclude = Union{DataType, Core.TypeName, Core.MethodInstance},
                      chargeall = Union{Core.TypeMapEntry, Method})
     @nospecialize obj exclude chargeall
-    ss = SummarySize(IdDict(), Any[], Int[], exclude, chargeall)
-    size::Int = ss(obj)
-    while !isempty(ss.frontier_x)
+    ss = SummarySize(obj, exclude, chargeall)
+    parent = ss.results
+    size::Int = ss(parent,parentname,obj)
+    while !isempty(ss.frontier)
         # DFS heap traversal of everything without a specialization
         # BFS heap traversal of anything with a specialization
-        x = ss.frontier_x[end]
-        i = ss.frontier_i[end]
+        node = ss.frontier[end]
+        x = node.x
+        i = node.i
+        parent_result = node.parent_result
         val = nothing
+        name = parentname
         if isa(x, SimpleVector)
             nf = length(x)
             if isassigned(x, i)
                 val = x[i]
+                name = "$i"
             end
         elseif isa(x, Array)
             nf = length(x)
             if ccall(:jl_array_isassigned, Cint, (Any, UInt), x, i - 1) != 0
                 val = x[i]
+                name = "$i"
             end
         else
             nf = nfields(x)
             ft = typeof(x).types
             if !isbitstype(ft[i]) && isdefined(x, i)
                 val = getfield(x, i)
+                name = "$(fieldname(typeof(x), i))"
             end
         end
         if nf > i
-            ss.frontier_i[end] = i + 1
+            ss.frontier[end].i = i + 1
         else
-            pop!(ss.frontier_x)
-            pop!(ss.frontier_i)
+            pop!(ss.frontier)
         end
         if val !== nothing && !isa(val, Module) && (!isa(val, ss.exclude) || isa(x, ss.chargeall))
-            size += ss(val)::Int
+            fieldresult = get!(parent_result.children, name, FieldResult(type=typeof(val),parent=parent_result))
+            valsize = ss(fieldresult, name, val)::Int
+            fieldresult.size = valsize
+            p = fieldresult.parent
+            while p !== nothing
+                p.size += valsize
+                p = p.parent
+            end
+            size += valsize
         end
     end
-    return size
+    ss.results.size = size
+    return ss.results
 end
 
-(ss::SummarySize)(@nospecialize obj) = _summarysize(ss, obj)
+(ss::SummarySize)(fieldresult, name, @nospecialize obj) = _summarysize(ss, fieldresult, name, obj)
 # define the general case separately to make sure it is not specialized for every type
-@noinline function _summarysize(ss::SummarySize, @nospecialize obj)
+@noinline function _summarysize(ss::SummarySize, fieldresult, name, @nospecialize obj)
     isdefined(typeof(obj), :instance) && return 0
     # NOTE: this attempts to discover multiple copies of the same immutable value,
     # and so is somewhat approximate.
     key = ccall(:jl_value_ptr, Ptr{Cvoid}, (Any,), obj)
     haskey(ss.seen, key) ? (return 0) : (ss.seen[key] = true)
     if nfields(obj) > 0
-        push!(ss.frontier_x, obj)
-        push!(ss.frontier_i, 1)
+        push!(ss.frontier, FrontierNode(obj, 1, fieldresult))
     end
     if isa(obj, UnionAll) || isa(obj, Union)
         # black-list of items that don't have a Core.sizeof
@@ -85,16 +125,16 @@ end
     return sz
 end
 
-(::SummarySize)(obj::Symbol) = 0
-(::SummarySize)(obj::SummarySize) = 0
+(::SummarySize)(_1,_2, obj::Symbol) = 0
+(::SummarySize)(_1,_2, obj::SummarySize) = 0
 
-function (ss::SummarySize)(obj::String)
+function (ss::SummarySize)(_1,_2, obj::String)
     key = ccall(:jl_value_ptr, Ptr{Cvoid}, (Any,), obj)
     haskey(ss.seen, key) ? (return 0) : (ss.seen[key] = true)
     return Core.sizeof(Int) + Core.sizeof(obj)
 end
 
-function (ss::SummarySize)(obj::DataType)
+function (ss::SummarySize)(_1,_2, obj::DataType)
     key = pointer_from_objref(obj)
     haskey(ss.seen, key) ? (return 0) : (ss.seen[key] = true)
     size::Int = 7 * Core.sizeof(Int) + 6 * Core.sizeof(Int32)
@@ -106,13 +146,14 @@ function (ss::SummarySize)(obj::DataType)
     return size
 end
 
-function (ss::SummarySize)(obj::Core.TypeName)
+function (ss::SummarySize)(_1,_2, obj::Core.TypeName)
     key = pointer_from_objref(obj)
     haskey(ss.seen, key) ? (return 0) : (ss.seen[key] = true)
     return Core.sizeof(obj) + (isdefined(obj, :mt) ? ss(obj.mt) : 0)
 end
 
-function (ss::SummarySize)(obj::Array)
+function (ss::SummarySize)(fieldresult,_2, obj::Array)
+    fieldresult.is_collection = true
     haskey(ss.seen, obj) ? (return 0) : (ss.seen[obj] = true)
     headersize = 4*sizeof(Int) + 8 + max(0, ndims(obj)-2)*sizeof(Int)
     size::Int = headersize
@@ -126,25 +167,24 @@ function (ss::SummarySize)(obj::Array)
         end
         size += dsize
         if !isempty(obj) && !Base.allocatedinline(eltype(obj))
-            push!(ss.frontier_x, obj)
-            push!(ss.frontier_i, 1)
+            push!(ss.frontier, FrontierNode(obj, 1, fieldresult))
         end
     end
     return size
 end
 
-function (ss::SummarySize)(obj::SimpleVector)
+function (ss::SummarySize)(fieldresult,_2, obj::SimpleVector)
+    fieldresult.is_collection = true
     key = pointer_from_objref(obj)
     haskey(ss.seen, key) ? (return 0) : (ss.seen[key] = true)
     size::Int = Core.sizeof(obj)
     if !isempty(obj)
-        push!(ss.frontier_x, obj)
-        push!(ss.frontier_i, 1)
+        push!(ss.frontier, FrontierNode(obj, 1, fieldresult))
     end
     return size
 end
 
-function (ss::SummarySize)(obj::Module)
+function (ss::SummarySize)(_1,_2, obj::Module)
     haskey(ss.seen, obj) ? (return 0) : (ss.seen[obj] = true)
     size::Int = Core.sizeof(obj)
     for binding in names(obj, all = true)
@@ -165,7 +205,7 @@ function (ss::SummarySize)(obj::Module)
     return size
 end
 
-function (ss::SummarySize)(obj::Task)
+function (ss::SummarySize)(_1,_2, obj::Task)
     haskey(ss.seen, obj) ? (return 0) : (ss.seen[obj] = true)
     size::Int = Core.sizeof(obj)
     if isdefined(obj, :code)
@@ -180,3 +220,4 @@ function (ss::SummarySize)(obj::Task)
     return size
 end
 
+end # module
