@@ -15,8 +15,9 @@ multistring = Obj(s,s);   # Shared references to large object
 selfie = Obj{Obj,Obj}(multistring);
 selfie.b = selfie;    # Self-reference
 
-MemoryExaminer.@inspect selfie
-MemoryExaminer.MemorySummarySize.summarysize(sh)
+# Not sure how to test an interactive UI like this.
+#MemoryExaminer.@inspect selfie
+result = MemoryExaminer.MemorySummarySize.summarysize(selfie)
 
 # Humanize.datasize(Base.summarysize(sh), style=:bin)
 #
