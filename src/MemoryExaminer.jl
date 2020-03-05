@@ -12,24 +12,44 @@ macro inspect(obj)
     :($inspect($(esc(obj)), $(QuoteNode(obj))))
 end
 
+probably_a_collection(x::T) where T = probably_a_collection(T)
+probably_a_collection(x::Type{T}) where T = false
+const _collection_types = (AbstractArray, AbstractDict, AbstractSet)
+probably_a_collection(x::Type{<:Union{_collection_types...}}) = true
+
+
 inspect(obj) = inspect(obj, "obj")
 function inspect(obj, path)
+    println("—"^(displaysize(stdout)[2]*2÷3))
     sz = Base.summarysize(obj)
     println("($path)::$(typeof(obj)) => $(Humanize.datasize(sz))")
 
-    fieldnames = propertynames(obj)
-    fields = [_trygetfield(obj, n) for n in fieldnames]
-    fieldsizes = ["$fieldname::$(typeof(f)) => $(Humanize.datasize(Base.summarysize(f)))"
-        for fieldname in fieldnames
-        for f in (fields,)
-    ]
+    is_collection, fieldnames, fields, options = if probably_a_collection(typeof(obj))
+        fields = collect(obj)
+        fieldnames = 1:length(fields)
+        options = [
+            "$i::$(typeof(f)) => $(Humanize.datasize(Base.summarysize(f)))"
+            for (i,f) in enumerate(fields)
+        ]
+        true, fieldnames, fields, options
+    else
+        fieldnames = propertynames(obj)
+        fields = [_trygetfield(obj, n) for n in fieldnames]
+        options = [
+            "$fieldname::$(typeof(f)) => $(Humanize.datasize(Base.summarysize(f)))"
+            for i in 1:length(fields)
+            for (f,fieldname) in ((fields[i],fieldnames[i]),)
+        ]
+        false, fieldnames, fields, options
+    end
 
-    options = fieldsizes
-    choice = _get_next_field_from_user(options)
+    request_str = is_collection ? "Item indices:" : "Fields:"
+    choice = _get_next_field_from_user(request_str, options)
     if choice == UP
         return
     else
-        inspect(fields[choice], "$path.$(fieldnames[choice])")
+        newpath = is_collection ? "$path[$(fieldnames[choice])]" : "$path.$(fieldnames[choice])"
+        inspect(fields[choice], newpath)
         # When you return Up from choice, rerun this pane
         inspect(obj, path)
     end
@@ -40,12 +60,14 @@ const fielderror = FieldError()
 _trygetfield(o, f) = try getfield(o, f) catch; fielderror end
 
 
-const UP = -2
-function _get_next_field_from_user(option_strings)
-    option_strings = [option_strings..., "↩"]
-    menu = RadioMenu(option_strings, pagesize=4)
+TerminalMenus.config(scroll=:wrap,cursor='→')
 
-    choice = request("Fields:", menu)
+const UP = -2
+function _get_next_field_from_user(request_str, option_strings)
+    option_strings = [option_strings..., "↩"]
+    menu = RadioMenu(option_strings, pagesize=8)
+
+    choice = request(request_str, menu)
 
     if choice == -1
         println("Menu canceled.")
