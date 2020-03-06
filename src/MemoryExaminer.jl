@@ -10,6 +10,7 @@ using TerminalMenus
 using Humanize
 
 include("summarysize.jl")
+include("ui.jl")
 
 """
     @inspect x
@@ -70,7 +71,7 @@ const UP = -2
 function _get_next_field_from_user(request_str, option_strings)
     option_strings = [option_strings..., "↩"]
     height = displaysize(stdout)[1]
-    menu = RadioMenu(option_strings, pagesize=min(20, height-3))
+    menu = InspectMenu(option_strings, pagesize=min(20, height-3))
 
     choice = request(request_str, menu)
 
