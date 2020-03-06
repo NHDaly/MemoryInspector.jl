@@ -20,12 +20,6 @@ macro inspect(obj)
     :($inspect($(esc(obj)), $(QuoteNode(obj))))
 end
 
-probably_a_collection(x::T) where T = probably_a_collection(T)
-probably_a_collection(x::Type{T}) where T = false
-const _collection_types = (AbstractArray, AbstractDict, AbstractSet)
-probably_a_collection(x::Type{<:Union{_collection_types...}}) = true
-
-
 inspect(@nospecialize obj) = inspect(obj, "obj")
 function inspect(@nospecialize(obj), name)
     TerminalMenus.config(scroll=:wrap,cursor='→')
@@ -47,7 +41,7 @@ function interactive_inspect_results(field_summary, path)
 
     is_collection = field_summary.is_collection
     num_children = length(field_summary.children)
-    request_str = is_collection ? "$num_children Indexes:" : "$num_children Fields:"
+    request_str = is_collection ? "$num_children Allocated Indexes:" : "$num_children Allocated Fields:"
     choice = _get_next_field_from_user(request_str, options)
     if choice == UP
         return
