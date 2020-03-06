@@ -51,7 +51,7 @@ function summarysize(obj;
     @nospecialize obj exclude chargeall
     ss = SummarySize(obj, exclude, chargeall)
     parent = ss.fieldresult
-    size::Int = ss(parent,parentname,obj)
+    size::Int = ss(parent,obj)
     while !isempty(ss.frontier)
         # DFS heap traversal of everything without a specialization
         # BFS heap traversal of anything with a specialization
@@ -88,7 +88,7 @@ function summarysize(obj;
         end
         if val !== nothing && !isa(val, Module) && (!isa(val, ss.exclude) || isa(x, ss.chargeall))
             fieldresult = get!(parent_result.children, name, FieldResult(type=typeof(val),parent=parent_result))
-            valsize = ss(fieldresult, name, val)::Int
+            valsize = ss(fieldresult, val)::Int
             _finish_fieldresult(fieldresult, val, valsize)
             p = fieldresult.parent
             while p !== nothing
@@ -109,9 +109,9 @@ function _finish_fieldresult(fieldresult, val, size)
     end
 end
 
-(ss::SummarySize)(fieldresult, name, @nospecialize obj) = _summarysize(ss, fieldresult, name, obj)
+(ss::SummarySize)(fieldresult, @nospecialize obj) = _summarysize(ss, fieldresult, obj)
 # define the general case separately to make sure it is not specialized for every type
-@noinline function _summarysize(ss::SummarySize, fieldresult, name, @nospecialize obj)
+@noinline function _summarysize(ss::SummarySize, fieldresult, @nospecialize obj)
     isdefined(typeof(obj), :instance) && return 0
     # NOTE: this attempts to discover multiple copies of the same immutable value,
     # and so is somewhat approximate.
@@ -142,16 +142,16 @@ function handle_seen(fieldresult, ss, obj)
     end
 end
 
-(::SummarySize)(fieldresult,_2, obj::Symbol) = 0
-(::SummarySize)(fieldresult,_2, obj::SummarySize) = 0
+(::SummarySize)(fieldresult, obj::Symbol) = 0
+(::SummarySize)(fieldresult, obj::SummarySize) = 0
 
-function (ss::SummarySize)(f,_2, obj::String)
+function (ss::SummarySize)(f, obj::String)
     key = ccall(:jl_value_ptr, Ptr{Cvoid}, (Any,), obj)
     if handle_seen(f, ss, obj) return 0 end
     return Core.sizeof(Int) + Core.sizeof(obj)
 end
 
-function (ss::SummarySize)(f,_2, obj::DataType)
+function (ss::SummarySize)(f, obj::DataType)
     key = pointer_from_objref(obj)
     if handle_seen(f, ss, obj) return 0 end
     size::Int = 7 * Core.sizeof(Int) + 6 * Core.sizeof(Int32)
@@ -163,13 +163,13 @@ function (ss::SummarySize)(f,_2, obj::DataType)
     return size
 end
 
-function (ss::SummarySize)(fieldresult,_2, obj::Core.TypeName)
+function (ss::SummarySize)(fieldresult, obj::Core.TypeName)
     key = pointer_from_objref(obj)
     if handle_seen(f, ss, obj) return 0 end
     return Core.sizeof(obj) + (isdefined(obj, :mt) ? ss(obj.mt) : 0)
 end
 
-function (ss::SummarySize)(fieldresult,_2, obj::Array)
+function (ss::SummarySize)(fieldresult, obj::Array)
     fieldresult.is_collection = true
     if handle_seen(fieldresult, ss, obj) return 0 end
     headersize = 4*sizeof(Int) + 8 + max(0, ndims(obj)-2)*sizeof(Int)
@@ -190,7 +190,7 @@ function (ss::SummarySize)(fieldresult,_2, obj::Array)
     return size
 end
 
-function (ss::SummarySize)(fieldresult,_2, obj::SimpleVector)
+function (ss::SummarySize)(fieldresult, obj::SimpleVector)
     fieldresult.is_collection = true
     key = pointer_from_objref(obj)
     if handle_seen(fieldresult, ss, obj) return 0 end
@@ -201,7 +201,7 @@ function (ss::SummarySize)(fieldresult,_2, obj::SimpleVector)
     return size
 end
 
-function (ss::SummarySize)(fieldresult,_2, obj::Module)
+function (ss::SummarySize)(fieldresult, obj::Module)
     if handle_seen(fieldresult, ss, obj) return 0 end
     size::Int = Core.sizeof(obj)
     for binding in names(obj, all = true)
@@ -222,7 +222,7 @@ function (ss::SummarySize)(fieldresult,_2, obj::Module)
     return size
 end
 
-function (ss::SummarySize)(fieldresult,_2, obj::Task)
+function (ss::SummarySize)(fieldresult, obj::Task)
     if handle_seen(fieldresult, ss, obj) return 0 end
     size::Int = Core.sizeof(obj)
     if isdefined(obj, :code)

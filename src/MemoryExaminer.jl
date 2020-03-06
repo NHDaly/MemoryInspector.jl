@@ -25,8 +25,14 @@ function inspect(@nospecialize(obj), name)
     TerminalMenus.config(scroll=:wrap,cursor='→')
 
     field_summary = MemorySummarySize.summarysize(obj, parentname=name)
-    interactive_inspect_results(field_summary, name)
+    try
+        interactive_inspect_results(field_summary, name)
+    catch e
+        e isa ExitUIException || rethrow()
+    end
+    nothing
 end
+struct ExitUIException end
 function interactive_inspect_results(field_summary, path)
     println("—"^(displaysize(stdout)[2]*2÷3))
     type = field_summary.type
@@ -69,7 +75,8 @@ function _get_next_field_from_user(request_str, option_strings)
     choice = request(request_str, menu)
 
     if choice == -1
-        println("Menu canceled.")
+        println("Exiting $(nameof(@__MODULE__))")
+        throw(ExitUIException())
     elseif choice == length(option_strings)
         UP
     else
