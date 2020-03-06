@@ -1,13 +1,13 @@
 import TerminalMenus
 import TerminalMenus: request
 
-mutable struct CthulhuMenu <: TerminalMenus.AbstractMenu
+mutable struct InspectMenu <: TerminalMenus.AbstractMenu
     options::Vector{String}
     pagesize::Int
     pageoffset::Int
     selected::Int
     toggle::Union{Nothing, Symbol}
-    sub_menu::Bool
+    scroll_horizontal::Int
 end
 
 function show_as_line(el)
@@ -18,9 +18,9 @@ function show_as_line(el)
 end
 
 
-function CthulhuMenu(callsites; pagesize::Int=10, sub_menu = false)
-    options = vcat(map(show_as_line, callsites), ["↩"])
-    length(options) < 1 && error("CthulhuMenu must have at least one option")
+function InspectMenu(options; pagesize::Int=10)
+    #options = vcat(map(show_as_line, callsites), ["↩"])
+    length(options) < 1 && error("InspectMenu must have at least one option")
 
     # if pagesize is -1, use automatic paging
     pagesize = pagesize == -1 ? length(options) : pagesize
@@ -32,68 +32,71 @@ function CthulhuMenu(callsites; pagesize::Int=10, sub_menu = false)
     pageoffset = 0
     selected = -1 # none
 
-    CthulhuMenu(options, pagesize, pageoffset, selected, nothing, sub_menu)
+    scroll_horizontal = 0
+
+    InspectMenu(options, pagesize, pageoffset, selected, nothing, scroll_horizontal)
 end
 
-TerminalMenus.options(m::CthulhuMenu) = m.options
-TerminalMenus.cancel(m::CthulhuMenu) = m.selected = -1
+TerminalMenus.options(m::InspectMenu) = m.options
+TerminalMenus.cancel(m::InspectMenu) = m.selected = -1
 
-function TerminalMenus.header(m::CthulhuMenu)
-    m.sub_menu && return ""
-    """
-    Select a call to descend into or ↩ to ascend. [q]uit.
+function TerminalMenus.header(m::InspectMenu)
+    ""
+    #"""
+    #Select a field to recurse into or ↩ to ascend. [q]uit.
+    #"""
+    #=
     Toggles: [o]ptimize, [w]arn, [d]ebuginfo, [s]yntax highlight for Source/LLVM/Native.
     Show: [S]ource code, [A]ST, [L]LVM IR, [N]ative code
     Advanced: dump [P]arams cache.
-    """
+    =#
 end
 
-function TerminalMenus.keypress(m::CthulhuMenu, key::UInt32)
-    m.sub_menu && return false
-    if key == UInt32('w')
-        m.toggle = :warn
-        return true
-    elseif key == UInt32('o')
-        m.toggle = :optimize
-        return true
-    elseif key == UInt32('d')
-        m.toggle = :debuginfo
-        return true
-    elseif key == UInt32('s')
-        m.toggle = :highlighter
-        return true
-   elseif key == UInt32('S')
-        m.toggle = :source
-        return true
-   elseif key == UInt32('A')
-        m.toggle = :ast
-        return true
-    elseif key == UInt32('L')
-        m.toggle = :llvm
-        return true
-    elseif key == UInt32('N')
-        m.toggle = :native
-        return true
-    elseif key == UInt32('P')
-        m.toggle = :dump_params
-        return true
+function TerminalMenus.keypress(m::InspectMenu, key::UInt32)
+    #if key == UInt32('w')
+    #    m.toggle = :warn
+    #    return true
+    if key == Int(TerminalMenus.ARROW_RIGHT)
+        m.scroll_horizontal -= 1
+    elseif key == Int(TerminalMenus.ARROW_LEFT)
+        m.scroll_horizontal += 1
     end
     return false
 end
 
-function TerminalMenus.pick(menu::CthulhuMenu, cursor::Int)
+function TerminalMenus.pick(menu::InspectMenu, cursor::Int)
     menu.selected = cursor
     return true #break out of the menu
 end
 
-function TerminalMenus.writeLine(buf::IOBuffer, menu::CthulhuMenu, idx::Int, cursor::Bool, term_width::Int)
+function TerminalMenus.writeLine(buf::IOBuffer, menu::InspectMenu, idx::Int, cursor::Bool, term_width::Int)
     cursor_len = length(TerminalMenus.CONFIG[:cursor])
     # print a ">" on the selected entry
     cursor ? print(buf, TerminalMenus.CONFIG[:cursor]) : print(buf, repeat(" ", cursor_len))
     print(buf, " ") # Space between cursor and text
 
     line = replace(menu.options[idx], "\n" => "\\n")
-    line = TerminalMenus.trimWidth(line, term_width, !cursor, cursor_len)
+    line,menu.scroll_horizontal = _custom_trimWidth(line, term_width, cursor, cursor_len, menu.scroll_horizontal)
 
     print(buf, line)
+end
+
+function _custom_trimWidth(str::String, term_width::Int, highlighted=false, pad::Int=2, scroll::Int=0)
+    max_str_len = term_width - pad - 5
+    str_len = length(str)
+    if highlighted
+        scroll = min(max(scroll, 0), min(str_len, str_len-max_str_len-pad))
+    end
+    if str_len <= max_str_len || str_len < 6
+        return str, scroll
+    end
+    if !highlighted
+        return string(str[1:max_str_len], ".."), scroll
+    else
+        if scroll > 0
+            return string(str[max(1,end-max_str_len-scroll):max(max_str_len,end-scroll)], ".."), scroll
+        else
+            return string("..", str[length(str) - max_str_len-scroll:end]), scroll
+        end
+    end
 end
