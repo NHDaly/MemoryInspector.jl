@@ -27,7 +27,7 @@ end
 
 struct SummarySize
     seen::IdDict{Any,Any}
-    results::FieldResult
+    fieldresult::FieldResult
     frontier::Vector{FrontierNode}
     exclude::Any
     chargeall::Any
@@ -50,7 +50,7 @@ function summarysize(obj;
                      chargeall = Union{Core.TypeMapEntry, Method})
     @nospecialize obj exclude chargeall
     ss = SummarySize(obj, exclude, chargeall)
-    parent = ss.results
+    parent = ss.fieldresult
     size::Int = ss(parent,parentname,obj)
     while !isempty(ss.frontier)
         # DFS heap traversal of everything without a specialization
@@ -89,7 +89,7 @@ function summarysize(obj;
         if val !== nothing && !isa(val, Module) && (!isa(val, ss.exclude) || isa(x, ss.chargeall))
             fieldresult = get!(parent_result.children, name, FieldResult(type=typeof(val),parent=parent_result))
             valsize = ss(fieldresult, name, val)::Int
-            fieldresult.size = valsize
+            _finish_fieldresult(fieldresult, val, valsize)
             p = fieldresult.parent
             while p !== nothing
                 p.size += valsize
@@ -98,8 +98,15 @@ function summarysize(obj;
             size += valsize
         end
     end
-    ss.results.size = size
-    return ss.results
+    _finish_fieldresult(ss.fieldresult, obj, size)
+    return ss.fieldresult
+end
+function _finish_fieldresult(fieldresult, val, size)
+    fieldresult.size = size
+    # Mark Collection types not handled below
+    if val isa Tuple
+        fieldresult.is_collection = true
+    end
 end
 
 (ss::SummarySize)(fieldresult, name, @nospecialize obj) = _summarysize(ss, fieldresult, name, obj)
