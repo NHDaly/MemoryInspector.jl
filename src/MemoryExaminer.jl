@@ -39,7 +39,6 @@ function interactive_inspect_results(field_summary, path)
     type = field_summary.type
     println("($path)::$type => $(_field_size(field_summary))")
 
-
     children = sort(collect(field_summary.children), by=pair->pair[2].size, rev=true)
     options = [
         "$name::$(f.type) => $(_field_size(f))"
@@ -48,6 +47,11 @@ function interactive_inspect_results(field_summary, path)
 
     is_collection = field_summary.is_collection
     num_children = length(field_summary.children)
+    if num_children > 0
+        total_allocated = sum(f.size for (_,f) in field_summary.children)
+        internal_bytes = field_summary.size - total_allocated
+        println("   $(Humanize.datasize(internal_bytes, style=:bin)) internal")
+    end
     request_str = is_collection ? "$num_children Allocated Indexes:" : "$num_children Allocated Fields:"
     choice = _get_next_field_from_user(request_str, options)
     if choice == UP
