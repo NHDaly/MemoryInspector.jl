@@ -1,10 +1,10 @@
-module MemoryExaminer
+module MemoryInspector
 
 # Use README as module docstring
 @doc let path = joinpath(dirname(@__DIR__), "README.md")
     include_dependency(path)
     read(path, String)
-end MemoryExaminer
+end MemoryInspector
 
 using TerminalMenus
 using Humanize

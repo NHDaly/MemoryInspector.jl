@@ -1,6 +1,6 @@
-using MemoryExaminer
+using MemoryInspector
 using Test
 
-@testset "MemoryExaminer.jl" begin
-    include("MemoryExaminer.jl")
+@testset "MemoryInspector.jl" begin
+    include("MemoryInspector.jl")
 end

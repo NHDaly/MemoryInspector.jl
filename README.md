@@ -1,8 +1,8 @@
-# MemoryExaminer
+# MemoryInspector
 
-[![Build Status](https://travis-ci.com/nhdaly/MemoryExaminer.jl.svg?branch=master)](https://travis-ci.com/nhdaly/MemoryExaminer.jl)
+[![Build Status](https://travis-ci.com/nhdaly/MemoryInspector.jl.svg?branch=master)](https://travis-ci.com/nhdaly/MemoryInspector.jl)
 
-- `MemoryExaminer.@inspect x`
+- `MemoryInspector.@inspect x`
 
 An interactive tool for exploring the sizes of julia objects:
 ```julia
@@ -11,7 +11,7 @@ Dict{Int64,Any} with 2 entries:
   2 => 3
   1 => (1, 2)
 
-julia> MemoryExaminer.@inspect d
+julia> MemoryInspector.@inspect d
 ———————————————————————————————————————————————————
 (d)::Dict{Int64,Any} => 480.0 B
 3 Fields:
@@ -55,7 +55,7 @@ julia> selfie = Obj{Obj,Obj}(multistring);
 
 julia> selfie.b = selfie;    # Self-reference
 
-julia> MemoryExaminer.@inspect selfie
+julia> MemoryInspector.@inspect selfie
 ———————————————————————————————————————————————————
 (selfie)::Obj{Obj,Obj} => 1.0 MiB
 2 Fields:
@@ -91,4 +91,4 @@ searching is something we should investigate tuning in the future!
 
 
 ## Desired Features
-See this GitHub Issue for some desired features: [#1](https://github.com/NHDaly/MemoryExaminer.jl/issues/1)
+See this GitHub Issue for some desired features: [#1](https://github.com/NHDaly/MemoryInspector.jl/issues/1)

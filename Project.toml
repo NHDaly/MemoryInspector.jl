@@ -1,4 +1,4 @@
-name = "MemoryExaminer"
+name = "MemoryInspector"
 uuid = "86003188-52e7-4782-9607-153a7cbed274"
 authors = ["Nathan Daly <nhdaly@gmail.com>"]
 version = "0.1.0"
