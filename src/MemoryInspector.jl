@@ -10,7 +10,7 @@ using TerminalMenus
 using Humanize
 
 include("summarysize.jl")
-include("ui.jl")
+include("selection_ui.jl")
 
 """
     @inspect x
