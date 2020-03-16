@@ -40,17 +40,8 @@ end
 TerminalMenus.options(m::InspectMenu) = m.options
 TerminalMenus.cancel(m::InspectMenu) = m.selected = -1
 
-function TerminalMenus.header(m::InspectMenu)
-    ""
-    #"""
-    #Select a field to recurse into or ↩ to ascend. [q]uit.
-    #"""
-    #=
-    Toggles: [o]ptimize, [w]arn, [d]ebuginfo, [s]yntax highlight for Source/LLVM/Native.
-    Show: [S]ource code, [A]ST, [L]LVM IR, [N]ative code
-    Advanced: dump [P]arams cache.
-    =#
-end
+# We don't use header() since we're manually printing a header before invoking the menu.
+TerminalMenus.header(m::InspectMenu) = ""
 
 function TerminalMenus.keypress(m::InspectMenu, key::UInt32)
     #if key == UInt32('w')

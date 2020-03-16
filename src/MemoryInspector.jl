@@ -36,6 +36,14 @@ end
 struct ExitUIException end
 function interactive_inspect_results(field_summary, path)
     println("—"^(displaysize(stdout)[2]*2÷3))
+    println("""
+        Select a field to recurse into or ↩ to ascend. [q]uit.
+        """)
+    #=
+    Toggles: [v]alue (of the current field).
+    Show: [S]ource code, [A]ST, [L]LVM IR, [N]ative code
+    Advanced: dump [P]arams cache.
+    =#
     type = field_summary.type
     println("($path)::$type => $(_field_size(field_summary))")
 
