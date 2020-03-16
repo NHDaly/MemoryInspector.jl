@@ -1,5 +1,9 @@
+module SelectionUI
+
 import TerminalMenus
 import TerminalMenus: request
+
+using ..MemoryInspector: SelectionOptions
 
 mutable struct InspectMenu <: TerminalMenus.AbstractMenu
     options::Vector{String}
@@ -7,6 +11,7 @@ mutable struct InspectMenu <: TerminalMenus.AbstractMenu
     pageoffset::Int
     selected::Int
     toggle::Union{Nothing, Symbol}
+    selected_command::Union{Nothing, SelectionOptions.Option}
     scroll_horizontal::Int
 end
 
@@ -34,7 +39,7 @@ function InspectMenu(options; pagesize::Int=10)
 
     scroll_horizontal = 0
 
-    InspectMenu(options, pagesize, pageoffset, selected, nothing, scroll_horizontal)
+    InspectMenu(options, pagesize, pageoffset, selected, nothing, nothing, scroll_horizontal)
 end
 
 TerminalMenus.options(m::InspectMenu) = m.options
@@ -51,6 +56,9 @@ function TerminalMenus.keypress(m::InspectMenu, key::UInt32)
         m.scroll_horizontal -= 1
     elseif key == Int(TerminalMenus.ARROW_LEFT)
         m.scroll_horizontal += 1
+    elseif key == Int('J')
+        m.selected_command = SelectionOptions.JUMP
+        return true
     end
     return false
 end
@@ -90,4 +98,6 @@ function _custom_trimWidth(str::String, term_width::Int, highlighted=false, pad:
             return string("..", str[length(str) - max_str_len-scroll:end]), scroll
         end
     end
+end
+
 end
