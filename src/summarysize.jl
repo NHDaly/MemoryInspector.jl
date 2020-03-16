@@ -4,7 +4,7 @@
 module MemorySummarySize
 
 using Core: SimpleVector
-using Base: unsafe_convert, isbitsunion
+using Base: unsafe_convert, isbitsunion, unwrap_unionall, isdeprecated, gc_alignment
 
 Base.@kwdef mutable struct FieldResult
     size::Int = 0
@@ -51,7 +51,7 @@ function summarysize(obj;
     @nospecialize obj exclude chargeall
     ss = SummarySize(obj, exclude, chargeall)
     parent = ss.fieldresult
-    size::Int = ss(parent,obj)
+    size::Int = ss(parent, obj)
     while !isempty(ss.frontier)
         # DFS heap traversal of everything without a specialization
         # BFS heap traversal of anything with a specialization
@@ -156,17 +156,17 @@ function (ss::SummarySize)(f, obj::DataType)
     if handle_seen(f, ss, obj) return 0 end
     size::Int = 7 * Core.sizeof(Int) + 6 * Core.sizeof(Int32)
     size += 4 * nfields(obj) + ifelse(Sys.WORD_SIZE == 64, 4, 0)
-    size += ss(obj.parameters)::Int
+    size += ss(f, obj.parameters)::Int
     if isdefined(obj, :types)
-        size += ss(obj.types)::Int
+        size += ss(f, obj.types)::Int
     end
     return size
 end
 
 function (ss::SummarySize)(fieldresult, obj::Core.TypeName)
     key = pointer_from_objref(obj)
-    if handle_seen(f, ss, obj) return 0 end
-    return Core.sizeof(obj) + (isdefined(obj, :mt) ? ss(obj.mt) : 0)
+    if handle_seen(fieldresult, ss, obj) return 0 end
+    return Core.sizeof(obj) + (isdefined(obj, :mt) ? ss(fieldresult, obj.mt) : 0)
 end
 
 function (ss::SummarySize)(fieldresult, obj::Array)
@@ -208,13 +208,13 @@ function (ss::SummarySize)(fieldresult, obj::Module)
         if isdefined(obj, binding) && !isdeprecated(obj, binding)
             value = getfield(obj, binding)
             if !isa(value, Module) || parentmodule(value) === obj
-                size += ss(value)::Int
+                size += ss(fieldresult, value)::Int
                 if isa(value, UnionAll)
                     value = unwrap_unionall(value)
                 end
                 if isa(value, DataType) && value.name.module === obj && value.name.name === binding
                     # charge a TypeName to its module (but not to the type)
-                    size += ss(value.name)::Int
+                    size += ss(fieldresult, value.name)::Int
                 end
             end
         end
@@ -226,13 +226,13 @@ function (ss::SummarySize)(fieldresult, obj::Task)
     if handle_seen(fieldresult, ss, obj) return 0 end
     size::Int = Core.sizeof(obj)
     if isdefined(obj, :code)
-        size += ss(obj.code)::Int
+        size += ss(fieldresult, obj.code)::Int
     end
-    size += ss(obj.storage)::Int
-    size += ss(obj.backtrace)::Int
-    size += ss(obj.donenotify)::Int
-    size += ss(obj.exception)::Int
-    size += ss(obj.result)::Int
+    size += ss(fieldresult, obj.storage)::Int
+    size += ss(fieldresult, obj.backtrace)::Int
+    size += ss(fieldresult, obj.donenotify)::Int
+    size += ss(fieldresult, obj.exception)::Int
+    size += ss(fieldresult, obj.result)::Int
     # TODO: add stack size, and possibly traverse stack roots
     return size
 end
