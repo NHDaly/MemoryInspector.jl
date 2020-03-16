@@ -97,7 +97,8 @@ function interactive_inspect_results(field_summary, path)
             # Display as if it was an ErrorException
             Base.display_error(e.err)
             println(stdout, "Press enter to continue: ")
-            readline(stdin)
+            # Enter (or ctrl-c) to continue
+            try readline(stdin) catch e; if e isa InterruptException; end end
             interactive_inspect_results(field_summary, path)
         else
             rethrow()
@@ -133,9 +134,17 @@ end
 
 function _command_jump(current_path, field)
     current_path = String(current_path)  # might be a symbol
-    println("Enter the complete path to jump to (e.g. `parent.arr[2].keys[2].foo.bar`):")
+    println("""Enter the complete path to jump to (e.g. `parent.arr[2].keys[2].foo.bar`).
+            (Press Ctrl-c to cancel)""")
     print("Path: ")
-    path = readline(stdin)
+    try
+        path = readline(stdin)
+    catch e
+        if e isa InterruptException
+            println()
+            return
+        end
+    end
 
     if !startswith(path, current_path)
         throw(UserError(ErrorException("Provided path must be COMPLETE; i.e. must start with `$current_path`")))
@@ -155,7 +164,7 @@ function _command_jump(current_path, field)
             #@show childname, subpath_len
             matches = [f for (name,f) in field.children if name == childname]
             if isempty(matches)
-                throw(ArgumentError("No field on `$current_path` matching "))
+                throw(ArgumentError("No field on `$current_path` matching $childname"))
             end
             field = first(matches)
             current_path = fullpath[1:length(current_path)+subpath_len+1]
