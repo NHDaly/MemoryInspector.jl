@@ -1,4 +1,4 @@
-# MemoryInspector
+# MemoryInspector.jl
 
 [![Build Status](https://travis-ci.com/nhdaly/MemoryInspector.jl.svg?branch=master)](https://travis-ci.com/nhdaly/MemoryInspector.jl)
 
