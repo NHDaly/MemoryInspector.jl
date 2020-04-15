@@ -1,5 +1,5 @@
-module MemoryInspectorTest
-import ..MemoryInspector
+module ByteBlameTest
+import ..ByteBlame
 
 mutable struct Obj{T1,T2}
     a::T1
@@ -16,8 +16,8 @@ selfie = Obj{Obj,Obj}(multistring);
 selfie.b = selfie;    # Self-reference
 
 # Not sure how to test an interactive UI like this.
-#MemoryInspector.@inspect selfie
-result = MemoryInspector.MemorySummarySize.summarysize(selfie)
+#ByteBlame.@inspect selfie
+result = ByteBlame.MemorySummarySize.summarysize(selfie)
 
 # Humanize.datasize(Base.summarysize(sh), style=:bin)
 #

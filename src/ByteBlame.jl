@@ -1,10 +1,10 @@
-module MemoryInspector
+module ByteBlame
 
 # Use README as module docstring
 @doc let path = joinpath(dirname(@__DIR__), "README.md")
     include_dependency(path)
     read(path, String)
-end MemoryInspector
+end ByteBlame
 
 using TerminalMenus
 using Humanize

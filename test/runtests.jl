@@ -1,6 +1,6 @@
-using MemoryInspector
+using ByteBlame
 using Test
 
-@testset "MemoryInspector.jl" begin
-    include("MemoryInspector.jl")
+@testset "ByteBlame.jl" begin
+    include("ByteBlame.jl")
 end

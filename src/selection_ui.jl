@@ -3,7 +3,7 @@ module SelectionUI
 import TerminalMenus
 import TerminalMenus: request
 
-using ..MemoryInspector: SelectionOptions
+using ..ByteBlame: SelectionOptions
 
 mutable struct InspectMenu <: TerminalMenus.AbstractMenu
     options::Vector{String}
