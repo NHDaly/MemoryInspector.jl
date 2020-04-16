@@ -22,6 +22,9 @@ include("summarysize.jl")
 include("ioutils.jl")
 include("selection_ui.jl")
 
+# Toggle whether we show a value or the field path
+const _show_value = Ref(false)
+
 """
     @inspect x
 
@@ -37,7 +40,7 @@ function inspect(user_module, @nospecialize(obj), name)
 
     field_summary = MemorySummarySize.summarysize(obj, parentname=name)
     try
-        global _show_value = false  # Reset back to initial value
+        _show_value[] = false  # Reset back to initial value
         interactive_inspect_results(user_module, field_summary, name)
     catch e
         e isa ExitUIException || rethrow()
@@ -63,7 +66,7 @@ function interactive_inspect_results(user_module, field_summary, path)
     =#
     type = field_summary.type
     size_str = string(_field_size(field_summary))
-    if _show_value
+    if _show_value[]
         try
             # Create an async task to show() the value of the variable at `path`.
             # Use WriteBlockingIO() to only print the first line, and terminate the task
@@ -113,7 +116,7 @@ function interactive_inspect_results(user_module, field_summary, path)
             elseif choice === SelectionOptions.JUMP
                 _command_jump(user_module, path, field_summary)
             elseif choice === SelectionOptions.TOGGLE_VALUE
-                global _show_value = !_show_value  # defined below this function
+                _show_value[] = !_show_value[]
             else
                 error("PROGRAMMING ERROR: Unexpected command: $(menu.selected_command)")
             end
@@ -134,7 +137,6 @@ function interactive_inspect_results(user_module, field_summary, path)
         end
     end
 end
-_show_value = false
 _field_size(f) = f.skipped_self_reference ? "<self-reference>" : Humanize.datasize(f.size, style=:bin)
 
 struct FieldError end
