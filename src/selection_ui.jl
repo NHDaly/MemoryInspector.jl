@@ -49,15 +49,15 @@ TerminalMenus.cancel(m::InspectMenu) = m.selected = -1
 TerminalMenus.header(m::InspectMenu) = ""
 
 function TerminalMenus.keypress(m::InspectMenu, key::UInt32)
-    #if key == UInt32('w')
-    #    m.toggle = :warn
-    #    return true
     if key == Int(TerminalMenus.ARROW_RIGHT)
         m.scroll_horizontal -= 1
     elseif key == Int(TerminalMenus.ARROW_LEFT)
         m.scroll_horizontal += 1
     elseif key == Int('J')
         m.selected_command = SelectionOptions.JUMP
+        return true
+    elseif key == UInt32('v')
+        m.selected_command = SelectionOptions.TOGGLE_VALUE
         return true
     end
     return false
