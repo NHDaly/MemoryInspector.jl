@@ -8,15 +8,18 @@ end MemoryInspector
 
 using TerminalMenus
 using Humanize
+import REPL
 
 module SelectionOptions
     @enum Option begin
         UP
         JUMP
+        TOGGLE_VALUE
     end
 end
 
 include("summarysize.jl")
+include("ioutils.jl")
 include("selection_ui.jl")
 
 """
@@ -25,16 +28,17 @@ include("selection_ui.jl")
 Open an interactive window to explore the sizes of the fields of `x`.
 """
 macro inspect(obj)
-    :($inspect($(esc(obj)), $(QuoteNode(obj))))
+    :($inspect($__module__, $(esc(obj)), $(QuoteNode(obj))))
 end
 
 inspect(@nospecialize obj) = inspect(obj, "obj")
-function inspect(@nospecialize(obj), name)
+function inspect(user_module, @nospecialize(obj), name)
     TerminalMenus.config(scroll=:wrap,cursor='→')
 
     field_summary = MemorySummarySize.summarysize(obj, parentname=name)
     try
-        interactive_inspect_results(field_summary, name)
+        global _show_value = false  # Reset back to initial value
+        interactive_inspect_results(user_module, field_summary, name)
     catch e
         e isa ExitUIException || rethrow()
     end
@@ -45,20 +49,43 @@ struct ExitUIException end
 struct UserError
     err
 end
-function interactive_inspect_results(field_summary, path)
+function interactive_inspect_results(user_module, field_summary, path)
     println("—"^(displaysize(stdout)[2]*2÷3))
     println("""
         Select a field to recurse into or ↩ to ascend. [q]uit.
 
         Commands: [J]ump to field path.
+        Toggles: [v]alue of the current field.
         """)
     #=
-    Toggles: [v]alue (of the current field).
     Show: [S]ource code, [A]ST, [L]LVM IR, [N]ative code
     Advanced: dump [P]arams cache.
     =#
     type = field_summary.type
-    println("($path)::$type => $(_field_size(field_summary))")
+    size_str = string(_field_size(field_summary))
+    if _show_value
+        try
+            # Create an async task to show() the value of the variable at `path`.
+            # Use WriteBlockingIO() to only print the first line, and terminate the task
+            # after that. This prevents showing a very large object from hanging the UI.
+            io = IOUtils.WriteBlockingIO() do io
+                show(io, Core.eval(user_module, Meta.parse(String(path))))
+            end
+            term_width = REPL.Terminals.width(TerminalMenus.terminal)
+            v_chars = IOUtils.take_up_to_n!(io, term_width)
+            max_len = term_width - length(size_str) - 5
+            if length(v_chars) > max_len
+                print(String(v_chars[1:max_len-3]), " … ")
+            else
+                print(String(v_chars))
+            end
+        catch
+            print("<ERROR displaying value...>")
+        end
+    else
+        print("($path)::$type")
+    end
+    println(" => $size_str")
 
     children = sort(collect(field_summary.children), by=pair->pair[2].size, rev=true)
     options = [
@@ -79,18 +106,20 @@ function interactive_inspect_results(field_summary, path)
         if choice isa Integer
             (name,field) = children[choice]
             newpath = is_collection ? "$path[$name]" : "$path.$name"
-            interactive_inspect_results(field, newpath)
+            interactive_inspect_results(user_module, field, newpath)
         elseif choice isa SelectionOptions.Option
             if choice === SelectionOptions.UP
                 return
             elseif choice === SelectionOptions.JUMP
-                _command_jump(path, field_summary)
+                _command_jump(user_module, path, field_summary)
+            elseif choice === SelectionOptions.TOGGLE_VALUE
+                global _show_value = !_show_value  # defined below this function
             else
                 error("PROGRAMMING ERROR: Unexpected command: $(menu.selected_command)")
             end
         end
         # When you return Up from choice, rerun this pane
-        interactive_inspect_results(field_summary, path)
+        interactive_inspect_results(user_module, field_summary, path)
     catch e
         # If we need to print a user error, do so, and then re-run this pane.
         if e isa UserError
@@ -99,12 +128,13 @@ function interactive_inspect_results(field_summary, path)
             println(stdout, "Press enter to continue: ")
             # Enter (or ctrl-c) to continue
             try readline(stdin) catch e; if e isa InterruptException; end end
-            interactive_inspect_results(field_summary, path)
+            interactive_inspect_results(user_module, field_summary, path)
         else
             rethrow()
         end
     end
 end
+_show_value = false
 _field_size(f) = f.skipped_self_reference ? "<self-reference>" : Humanize.datasize(f.size, style=:bin)
 
 struct FieldError end
@@ -132,7 +162,7 @@ function _get_next_field_from_user(request_str, option_strings)
     end
 end
 
-function _command_jump(current_path, field)
+function _command_jump(user_module, current_path, field)
     current_path = String(current_path)  # might be a symbol
     println("""Enter the complete path to jump to (e.g. `parent.arr[2].keys[2].foo.bar`).
             (Press Ctrl-c to cancel)""")
@@ -174,7 +204,7 @@ function _command_jump(current_path, field)
         rethrow(UserError(e))
     end
 
-    interactive_inspect_results(field, current_path)
+    interactive_inspect_results(user_module, field, current_path)
 end
 
 function get_childname(subpath; in_index=false)
