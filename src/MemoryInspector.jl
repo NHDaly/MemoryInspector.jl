@@ -1,5 +1,7 @@
 module MemoryInspector
 
+export @inspect
+
 # Use README as module docstring
 @doc let path = joinpath(dirname(@__DIR__), "README.md")
     include_dependency(path)
