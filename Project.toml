@@ -9,6 +9,8 @@ REPL = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
 TerminalMenus = "dc548174-15c3-5faf-af27-7997cfbde655"
 
 [compat]
+Humanize = "1.0"
+TerminalMenus = "0.1"
 julia = "1.4"
 
 [extras]
