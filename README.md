@@ -12,23 +12,51 @@ Dict{Int64,Any} with 2 entries:
   1 => (1, 2)
 
 julia> MemoryInspector.@inspect d
-———————————————————————————————————————————————————
+—————————————————————————————————————————————————————————————————————————————————————————————————————————
+Select a field to recurse into or ↩ to ascend. [q]uit.
+
+Commands: [J]ump to field path.
+Toggles: [v]alue of the current field.
+
 (d)::Dict{Int64,Any} => 480.0 B
-3 Fields:
+   64.0 B internal
+3 Allocated Fields:
  → vals::Array{Any,1} => 192.0 B
    keys::Array{Int64,1} => 168.0 B
    slots::Array{UInt8,1} => 56.0 B
    ↩
-———————————————————————————————————————————————————
+—————————————————————————————————————————————————————————————————————————————————————————————————————————
+Select a field to recurse into or ↩ to ascend. [q]uit.
+
+Commands: [J]ump to field path.
+Toggles: [v]alue of the current field.
+
 (d.vals)::Array{Any,1} => 192.0 B
-2 Indexes:
+   168.0 B internal
+2 Allocated Indexes:
  → 16::Tuple{Int64,Int64} => 16.0 B
    6::Int64 => 8.0 B
    ↩
-———————————————————————————————————————————————————
+—————————————————————————————————————————————————————————————————————————————————————————————————————————
+Select a field to recurse into or ↩ to ascend. [q]uit.
+
+Commands: [J]ump to field path.
+Toggles: [v]alue of the current field.
+
 (d.vals[16])::Tuple{Int64,Int64} => 16.0 B
-0 Fields:
+0 Allocated Indexes:
  → ↩
+
+—————————————————————————————————————————————————————————————————————————————————————————————————————————
+Select a field to recurse into or ↩ to ascend. [q]uit.
+
+Commands: [J]ump to field path.
+Toggles: [v]alue of the current field.
+
+(1, 2) => 16.0 B
+0 Allocated Indexes:
+ → ↩
+
 ```
 
 ## Featuring *True Size Accounting!*
