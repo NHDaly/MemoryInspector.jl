@@ -7,6 +7,9 @@ using Core: SimpleVector
 using Base: unsafe_convert, isbitsunion, unwrap_unionall, isdeprecated, gc_alignment
 
 Base.@kwdef mutable struct FieldResult
+    # The unique id for the FieldResultalue itself
+    objectid::UInt = 0x0
+
     size::Int = 0
     type::Type
     is_collection::Bool = false
@@ -16,7 +19,7 @@ Base.@kwdef mutable struct FieldResult
 end
 function Base.show(io::IO, fr::FieldResult)
     # Print everything but parent
-    print(io,"FieldResult($(fr.size), $(fr.type), $(fr.is_collection), $(fr.children))")
+    print(io,"FieldResult($(fr.objectid), $(fr.size), $(fr.type), $(fr.is_collection), $(fr.children))")
 end
 
 mutable struct FrontierNode
@@ -102,6 +105,7 @@ function summarysize(obj;
     return ss.fieldresult
 end
 function _finish_fieldresult(fieldresult, val, size)
+    fieldresult.objectid = Base.objectid(val)
     fieldresult.size = size
     # Mark Collection types not handled below
     if val isa Tuple

@@ -23,6 +23,7 @@ end
 include("summarysize.jl")
 include("ioutils.jl")
 include("selection_ui.jl")
+include("pprof_export.jl")
 
 # Toggle whether we show a value or the field path
 const _show_value = Ref(false)
@@ -110,7 +111,7 @@ function interactive_inspect_results(user_module, field_summary, path)
         choice = _get_next_field_from_user(request_str, options)
         if choice isa Integer
             (name,field) = children[choice]
-            newpath = is_collection ? "$path[$name]" : "$path.$name"
+            newpath = _path_str(path, field_summary, name)
             interactive_inspect_results(user_module, field, newpath)
         elseif choice isa SelectionOptions.Option
             if choice === SelectionOptions.UP
@@ -138,6 +139,10 @@ function interactive_inspect_results(user_module, field_summary, path)
             rethrow()
         end
     end
+end
+function _path_str(parent_path, field_summary, name)
+    is_collection = field_summary.is_collection
+    newpath = is_collection ? "$parent_path[$name]" : "$parent_path.$name"
 end
 _field_size(f) = f.skipped_self_reference ? "<self-reference>" : Humanize.datasize(f.size, style=:bin)
 
