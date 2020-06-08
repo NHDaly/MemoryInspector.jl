@@ -8,23 +8,6 @@ using OrderedCollections
 
 using MemoryInspector.MemorySummarySize: FieldResult
 
-function iterate_summary_result(
-    parent_name,
-    top_level_field_result::FieldResult,
-)
-    return Channel() do ch
-        parent_path = parent_name
-        parent_field = top_level_field_result
-        key = String[]
-
-        for (name,field) in parent_field.children
-            push!(key, name)
-            put!(ch,
-                MemoryInspector._path_str(parent_path, parent_field, name) =>
-                    field)
-        end
-    end
-end
 
 struct FieldTraversalNode
     path::String
