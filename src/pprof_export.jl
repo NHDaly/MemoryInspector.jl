@@ -1,3 +1,10 @@
+# Most of this file was copied from the PProf.jl package, and then adapted to
+# export a profile of the current memory usage for a given object, via
+# `MemorySummarySize.summarysize()` from this package.
+# This code is pretty hacky, and I could probably do a better job re-using
+# logic from the PProf package, but :shrug:.
+
+
 # Import the PProf generated protobuf types from the PProf package:
 import PProf
 import PProf.perftools.profiles: ValueType, Sample, Function, Location, Line, Label
@@ -16,15 +23,12 @@ struct FieldTraversalNode
     field::FieldResult
 end
 
-"""
-    _enter!(dict::OrderedDict{T, Int64}, key::T) where T
 
-Resolves from `key` to the index (zero-based) in the dict.
-Useful for the Strings table
-
-NOTE: We must use Int64 throughout this package (regardless of system word-size) b/c the
-proto file specifies 64-bit integers.
-"""
+# Resolves from `key` to the index (zero-based) in the dict.
+# Useful for the Strings table
+# 
+# NOTE: We must use Int64 throughout this package (regardless of system word-size) b/c the
+# proto file specifies 64-bit integers.
 function _enter!(dict::OrderedDict{T, Int64}, key::T) where T
     if haskey(dict, key)
         return dict[key]
@@ -40,50 +44,51 @@ using Base.StackTraces: StackFrame
 # TODO:
 # - Mappings
 
-macro pprof(exs...)
-    args = exs[1:end-1]
-    e = exs[end]
-    :(_pprof($(string(e)), $(esc(e)); $((esc(a) for a in args)...)))
-end
-
 """
-    _pprof(name, obj;
-            web = true, webhost = "localhost", webport = 57599,
-            out = "profile.pb.gz", from_c = true, drop_frames = "", keep_frames = "",
-            ui_relative_percentages = true,
-         )
+    @pprof [kwargs...] object
+    @pprof webport=62261 out="mem-inspect-profile" [...] object
 
-Fetches the collected `Profile` data, exports to the `pprof` format, and (optionally) opens
-a `pprof` web-server for interactively viewing the results.
+Collects detailed breakdown of the recursive size information for `object`, via
+the functionality provided by MemoryInspector.jl, and exports it to a profile in the
+`pprof` format, and (optionally) opens a `pprof` web-server for interactively
+viewing the results using the PProf.jl package.
 
-If `web=true`, the web-server is opened in the background. Re-running `pprof()` will refresh
+The following flags are available, copied from the PProf.jl package:
+
+If `web=true`, the web-server is opened in the background. Re-running `@pprof()` will refresh
 the web-server to use the new output.
 
-If you manually edit the output file, `PProf.refresh()` will refresh the server without
-overwriting the output file. `PProf.kill()` will kill the server.
+If you manually edit the output file or want to point at an existing profile object,
+`PProf.refresh()` will refresh the server without overwriting the output file.
+`PProf.kill()` will kill the server.
 
 # Arguments:
-- `data::Vector{UInt}`: The data provided by `Profile.fetch` [optional].
+- `object`: The object (or expression) whose size information you want to profile.
 
 # Keyword Arguments
 - `web::Bool`: Whether to launch the `go tool pprof` interactive webserver for viewing results.
 - `webhost::AbstractString`: If using `web`, which host to launch the webserver on.
 - `webport::Integer`: If using `web`, which port to launch the webserver on.
 - `out::String`: Filename for output.
-- `from_c::Bool`: If `false`, exclude frames that come from from_c. Defaults to `true`.
 - `drop_frames`: frames with function_name fully matching regexp string will be dropped from the samples,
                  along with their successors.
 - `keep_frames`: frames with function_name fully matching regexp string will be kept, even if it matches drop_functions.
 - `ui_relative_percentages`: Passes `-relative_percentages` to pprof. Causes nodes
   ignored/hidden through the web UI to be ignored from totals when computing percentages.
 """
+macro pprof(exs...)
+    args = exs[1:end-1]
+    e = exs[end]
+    :(_pprof($(string(e)), $(esc(e)); $((esc(a) for a in args)...)))
+end
+
 function _pprof(top_level_path::String, @nospecialize(obj),
                ;
                web::Bool = true,
                webhost::AbstractString = "localhost",
-               webport::Integer = 57599,
+               webport::Integer = 62261,  # Use a different port than PProf (chosen via rand(33333:99999))
                out::AbstractString = "mem-inspect-profile.pb.gz",
-               from_c::Bool = true,
+               #from_c::Bool = true,
                drop_frames::Union{Nothing, AbstractString} = nothing,
                keep_frames::Union{Nothing, AbstractString} = nothing,
                ui_relative_percentages::Bool = true,
@@ -241,7 +246,7 @@ function _pprof(top_level_path::String, @nospecialize(obj),
 
     if web
         PProf.refresh(webhost = webhost, webport = webport, file = out,
-                      #ui_relative_percentages = ui_relative_percentages)
+                      ui_relative_percentages = ui_relative_percentages,
         )
     end
 
