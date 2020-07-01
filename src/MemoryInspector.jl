@@ -8,6 +8,10 @@ export @inspect, @mem_pprof
     read(path, String)
 end MemoryInspector
 
+if VERSION >= v"1.5-" || VERSION < v"1.4-"
+    @warn "Only Julia version 1.4 is supported. Beware this may segfault!"
+end
+
 using Humanize
 import REPL
 using REPL.TerminalMenus
