@@ -14,6 +14,9 @@ TerminalMenus = "dc548174-15c3-5faf-af27-7997cfbde655"
 [compat]
 Humanize = "1.0"
 TerminalMenus = "0.1"
+OrderedCollections = "1"
+PProf = "1"
+ProtoBuf = "0.7, 0.8"
 julia = "~1.4"
 
 [extras]
