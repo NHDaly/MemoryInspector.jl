@@ -1,6 +1,6 @@
 module MemoryInspector
 
-export @inspect
+export @inspect, @mem_pprof
 
 # Use README as module docstring
 @doc let path = joinpath(dirname(@__DIR__), "README.md")

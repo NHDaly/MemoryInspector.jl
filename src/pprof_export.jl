@@ -45,8 +45,8 @@ using Base.StackTraces: StackFrame
 # - Mappings
 
 """
-    @pprof [kwargs...] object
-    @pprof webport=62261 out="mem-inspect-profile" [...] object
+    @mem_pprof [kwargs...] object
+    @mem_pprof webport=62261 out="mem-inspect-profile" [...] object
 
 Collects detailed breakdown of the recursive size information for `object`, via
 the functionality provided by MemoryInspector.jl, and exports it to a profile in the
@@ -76,7 +76,7 @@ If you manually edit the output file or want to point at an existing profile obj
 - `ui_relative_percentages`: Passes `-relative_percentages` to pprof. Causes nodes
   ignored/hidden through the web UI to be ignored from totals when computing percentages.
 """
-macro pprof(exs...)
+macro mem_pprof(exs...)
     args = exs[1:end-1]
     e = exs[end]
     :(_pprof($(string(e)), $(esc(e)); $((esc(a) for a in args)...)))
