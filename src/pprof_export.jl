@@ -245,10 +245,55 @@ function _pprof(top_level_path::String, @nospecialize(obj),
     end
 
     if web
-        PProf.refresh(webhost = webhost, webport = webport, file = out,
+        refresh_pprof(webhost = webhost, webport = webport, file = out,
                       ui_relative_percentages = ui_relative_percentages,
         )
     end
 
     out
 end
+
+const proc = Ref{Union{Base.Process, Nothing}}(nothing)
+
+"""
+    refresh_pprof(; webhost = "localhost", webport = 57599, file = "profile.pb.gz",
+                    ui_relative_percentages = true)
+Start or restart the go pprof webserver.
+- `webhost::AbstractString`: Which host to launch the webserver on.
+- `webport::Integer`: Which port to launch the webserver on.
+- `file::String`: Profile file to open.
+- `ui_relative_percentages::Bool`: Passes `-relative_percentages` to pprof. Causes nodes
+  ignored/hidden through the web UI to be ignored from totals when computing percentages.
+"""
+function refresh_pprof(; webhost::AbstractString = "localhost",
+                         webport::Integer = 57599,
+                         file::AbstractString = "profile.pb.gz",
+                         ui_relative_percentages::Bool = true,
+                      )
+
+    if proc[] === nothing
+        # The first time, register an atexit hook to kill the web server.
+        atexit(kill_pprof)
+    else
+        # On subsequent calls, restart the pprof web server.
+        Base.kill(proc[])
+    end
+
+    relative_percentages_flag = ui_relative_percentages ? "-relative_percentages" : ""
+
+    proc[] = PProf.pprof_jll.pprof() do pprof_path 
+        open(pipeline(`$pprof_path -http=$webhost:$webport $relative_percentages_flag $file`))
+    end
+end
+
+"""
+    kill_pprof()
+Kills the pprof server if running.
+"""
+function kill_pprof()
+    if proc[] !== nothing
+        Base.kill(proc[])
+        proc[] = nothing
+    end
+end
+
