@@ -8,9 +8,9 @@ export @inspect, @mem_pprof
     read(path, String)
 end MemoryInspector
 
-using TerminalMenus
 using Humanize
 import REPL
+using REPL.TerminalMenus
 
 module SelectionOptions
     @enum Option begin

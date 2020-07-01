@@ -1,7 +1,8 @@
 module SelectionUI
 
-import TerminalMenus
-import TerminalMenus: request
+import REPL
+import REPL.TerminalMenus
+using REPL.TerminalMenus: request  # Called from parent package
 
 using ..MemoryInspector: SelectionOptions
 
@@ -68,7 +69,9 @@ function TerminalMenus.pick(menu::InspectMenu, cursor::Int)
     return true #break out of the menu
 end
 
-function TerminalMenus.writeLine(buf::IOBuffer, menu::InspectMenu, idx::Int, cursor::Bool, term_width::Int)
+function TerminalMenus.writeLine(buf::IOBuffer, menu::InspectMenu, idx::Int, cursor::Bool)
+    term_width = REPL.Terminals.width(TerminalMenus.terminal)
+
     cursor_len = length(TerminalMenus.CONFIG[:cursor])
     # print a ">" on the selected entry
     cursor ? print(buf, TerminalMenus.CONFIG[:cursor]) : print(buf, repeat(" ", cursor_len))
