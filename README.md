@@ -117,6 +117,29 @@ Note that this does mean that sometimes the bytes may be accounted for in a sub-
 that may not match your expectations. This tradeoff between breadth-first and depth-first
 searching is something we should investigate tuning in the future!
 
+## Inspecting Memory via graph and flamegraph layouts:
+
+We support exporting to a PProf profile, via `MemoryInspector.@pprof`:
+
+```julia
+julia> d = Dict(1=>2, 2=>"hello", 3=>"hi", ("hi",2)=>3)
+Dict{Any,Any} with 4 entries:
+  2         => "hello"
+  3         => "hi"
+  ("hi", 2) => 3
+  1         => 2
+
+julia> MemoryInspector.@pprof web=true webport=23222 d
+"mem-inspect-profile.pb.gz"
+
+Serving web UI on http://localhost:23222
+```
+Graph:
+<img width="435" alt="Screen Shot 2020-06-03 at 9 00 58 PM" src="https://user-images.githubusercontent.com/1582097/83703382-70f9dc80-a5dd-11ea-978a-b6f962bab4ed.png">
+Flamegraph:
+<img width="980" alt="Screen Shot 2020-06-03 at 9 05 35 PM" src="https://user-images.githubusercontent.com/1582097/83703573-01d0b800-a5de-11ea-8e8b-dcddc479b4da.png">
+
+
 
 ## Desired Features
 See this GitHub Issue for some desired features: [#1](https://github.com/NHDaly/MemoryInspector.jl/issues/1)
