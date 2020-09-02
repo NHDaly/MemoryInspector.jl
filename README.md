@@ -134,10 +134,13 @@ julia> MemoryInspector.@pprof web=true webport=23222 d
 
 Serving web UI on http://localhost:23222
 ```
+
 Graph:
+
 <img width="435" alt="Screen Shot 2020-06-03 at 9 00 58 PM" src="https://user-images.githubusercontent.com/1582097/83703382-70f9dc80-a5dd-11ea-978a-b6f962bab4ed.png">
 
 Flamegraph:
+
 <img width="980" alt="Screen Shot 2020-06-03 at 9 05 35 PM" src="https://user-images.githubusercontent.com/1582097/83703573-01d0b800-a5de-11ea-8e8b-dcddc479b4da.png">
 
 
