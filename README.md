@@ -119,7 +119,7 @@ searching is something we should investigate tuning in the future!
 
 ## Inspecting Memory via graph and flamegraph layouts:
 
-We support exporting to a PProf profile, via `MemoryInspector.@pprof`:
+We support exporting to a PProf profile, via `MemoryInspector.@mem_pprof`:
 
 ```julia
 julia> d = Dict(1=>2, 2=>"hello", 3=>"hi", ("hi",2)=>3)
@@ -129,7 +129,7 @@ Dict{Any,Any} with 4 entries:
   ("hi", 2) => 3
   1         => 2
 
-julia> MemoryInspector.@pprof web=true webport=23222 d
+julia> MemoryInspector.@mem_pprof web=true webport=23222 d
 "mem-inspect-profile.pb.gz"
 
 Serving web UI on http://localhost:23222
